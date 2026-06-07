@@ -312,20 +312,6 @@ function App() {
 
   return (
     <main className="prototype-app">
-      <header className="menu-bar" aria-label="桌面顶栏预览">
-        <div className="menu-left">
-          <span className="traffic-dot traffic-dot-dark" />
-          <span className="menu-app-name">原型草图</span>
-          <span>文件</span>
-          <span>编辑</span>
-          <span>视图</span>
-        </div>
-        <div className="menu-right">
-          <span>随时待命</span>
-          <span>⌘ ⇧ P</span>
-        </div>
-      </header>
-
       <section className="floating-workbench" aria-label="AI 原型草图工作台">
         <div className="window-titlebar">
           <div className="traffic-lights" aria-hidden="true">
@@ -374,6 +360,12 @@ function App() {
               initialData={initialData as any}
               excalidrawAPI={(api) => {
                 excalidrawApiRef.current = api
+                window.setTimeout(() => {
+                  const sceneElements = api.getSceneElements()
+                  if (sceneElements.length > 0) {
+                    api.scrollToContent(sceneElements, { fitToContent: true, animate: false })
+                  }
+                }, 120)
               }}
               UIOptions={{
                 canvasActions: {

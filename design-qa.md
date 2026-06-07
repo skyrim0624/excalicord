@@ -23,3 +23,4 @@
 
 - The product is now focused on local AI handoff sketches, not the original recording flow.
 - Clipboard image copy can still depend on the host browser or desktop shell permissions.
+- 2026-06-07 follow-up: removed the fake outer desktop/window shell and changed the app to a full-screen workbench; initial Excalidraw view now fits all starter template elements.
