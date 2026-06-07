@@ -249,6 +249,7 @@ export function useRecordingFlow(): UseRecordingFlowReturn {
     duration,
     recordedBlob,
     startPreview,
+    startPreviewWithFrameDims,
     cancelPreview,
     startRecording,
     pauseRecording,
