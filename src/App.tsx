@@ -4,6 +4,7 @@ import {
   Circle,
   ClipboardCopy,
   Download,
+  FilePlus2,
   FileText,
   Frame,
   MousePointer2,
@@ -239,6 +240,31 @@ function App() {
     setLastInsertedTemplate(template)
   }, [])
 
+  const handleNewCanvas = useCallback(() => {
+    const api = excalidrawApiRef.current
+    if (!api) return
+
+    insertCountRef.current = 0
+    api.updateScene({
+      elements: [],
+      files: {},
+      appState: {
+        theme: THEME.LIGHT,
+        viewBackgroundColor: "#ffffff",
+        currentItemStrokeColor: "#111827",
+        currentItemBackgroundColor: "transparent",
+        currentItemRoughness: 1,
+        currentItemFontFamily: FONT_FAMILY.Virgil,
+        zoom: { value: 0.7 },
+        scrollX: 0,
+        scrollY: 0,
+      },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    })
+    handleToolSelect("selection")
+    setLastInsertedTemplate("iphone")
+  }, [handleToolSelect])
+
   const handleCopyForAgent = useCallback(async () => {
     const api = excalidrawApiRef.current
     if (!api) return
@@ -325,6 +351,10 @@ function App() {
           </div>
           <div className="title-actions">
             <span className="copy-status">{copyStatus}</span>
+            <button className="secondary-action" type="button" onClick={handleNewCanvas}>
+              <FilePlus2 size={16} />
+              新建
+            </button>
             <button className="secondary-action" type="button" onClick={handleDownloadPng}>
               <Download size={16} />
               导出

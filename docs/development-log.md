@@ -19,4 +19,9 @@
 - [进展]: 创建 Cloudflare Pages 项目 `ai-prototype-sketch-tool`，生产分支设置为 `main`。
 - [进展]: 将本地 `dist` 直接上传到 Cloudflare Pages，正式地址为 `https://ai-prototype-sketch-tool.pages.dev/`。
 - [验证]: `npm run build` 通过；Cloudflare 部署 `bcc0259e-c252-4e07-a54f-1a84e27bdcaf` 为 Production / main；正式域名与部署域名均返回 `200`。
-- [决策]: 将 Wrangler 固定为开发依赖，方便后续继续从本地直接部署 Pages。
+- [决策]: 使用 Wrangler 直接上传 `dist` 到 Pages；不把 Wrangler 固定进项目依赖，避免污染当前前端依赖锁文件。
+
+## 2026-06-08 新建画布入口
+
+- [进展]: 顶部操作区新增「新建」按钮，点击后清空当前 Excalidraw 画布、重置插入计数，并切回选择工具。
+- [验证]: `npm run build` 通过；本地页面点击「新建」后初始模板消失，画布变为空白，无相关控制台错误。
