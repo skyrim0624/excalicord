@@ -13,3 +13,10 @@
 - [进展]: 用户指出界面外层有问题后，去掉伪桌面顶栏和内嵌窗口感，改为真正占满可用区域的工具工作台。
 - [进展]: Excalidraw 初始化后自动 fit 全部 starter 元素，避免只看到 iPhone 模板、右侧和底部出现大面积空白。
 - [验证]: `npm run build` 通过；桌面浏览器复查通过，无当前 app 控制台错误。
+
+## 2026-06-08 Cloudflare Pages 上线
+
+- [进展]: 创建 Cloudflare Pages 项目 `ai-prototype-sketch-tool`，生产分支设置为 `main`。
+- [进展]: 将本地 `dist` 直接上传到 Cloudflare Pages，正式地址为 `https://ai-prototype-sketch-tool.pages.dev/`。
+- [验证]: `npm run build` 通过；Cloudflare 部署 `bcc0259e-c252-4e07-a54f-1a84e27bdcaf` 为 Production / main；正式域名与部署域名均返回 `200`。
+- [决策]: 将 Wrangler 固定为开发依赖，方便后续继续从本地直接部署 Pages。
