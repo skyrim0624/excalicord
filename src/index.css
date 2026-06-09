@@ -401,6 +401,193 @@ button {
   white-space: normal;
 }
 
+.preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  padding: 34px;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(10px);
+}
+
+.preview-window {
+  width: min(1120px, 100%);
+  height: min(720px, 100%);
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 58px 1fr;
+  overflow: hidden;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+}
+
+.preview-titlebar {
+  min-width: 0;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.preview-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.preview-close {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #111827;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.preview-content {
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+}
+
+.preview-stage {
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.preview-sketch {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.preview-state-card {
+  position: absolute;
+  left: 42px;
+  bottom: 42px;
+  width: min(320px, calc(100% - 84px));
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
+}
+
+.preview-state-card strong {
+  font-size: 18px;
+}
+
+.preview-state-card span {
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.preview-controls {
+  min-width: 0;
+  padding: 24px;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  background: #ffffff;
+  border-left: 1px solid #e5e7eb;
+}
+
+.preview-control-list {
+  display: grid;
+  gap: 10px;
+}
+
+.preview-control,
+.preview-modal-trigger {
+  min-height: 44px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #111827;
+  background: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.preview-control:hover,
+.preview-control.active,
+.preview-modal-trigger:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.preview-control.active {
+  color: #1d4ed8;
+}
+
+.generated-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.32);
+}
+
+.generated-modal {
+  width: min(320px, calc(100% - 48px));
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+  color: #111827;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+}
+
+.generated-modal strong {
+  font-size: 18px;
+}
+
+.generated-modal span {
+  color: #475569;
+  font-size: 14px;
+}
+
+.generated-modal button {
+  height: 38px;
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #2563eb;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 @media (max-width: 980px) {
   body {
     overflow: auto;
@@ -460,5 +647,34 @@ button {
 
   .template-panel {
     display: none;
+  }
+
+  .preview-overlay {
+    padding: 12px;
+  }
+
+  .preview-window {
+    height: calc(100vh - 24px);
+  }
+
+  .preview-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .preview-controls {
+    border-top: 1px solid #e5e7eb;
+    border-left: 0;
+  }
+
+  .preview-control-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .preview-state-card {
+    left: 18px;
+    right: 18px;
+    bottom: 18px;
+    width: auto;
   }
 }
