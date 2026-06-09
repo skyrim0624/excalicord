@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react"
+import { type ChangeEvent, useCallback, useMemo, useRef, useState } from "react"
 import {
   ArrowRight,
   Circle,
@@ -7,7 +7,10 @@ import {
   FilePlus2,
   FileText,
   Frame,
+  ImagePlus,
+  type LucideIcon,
   MousePointer2,
+  Paintbrush,
   PanelRight,
   PenLine,
   RectangleHorizontal,
@@ -26,20 +29,33 @@ import {
 import "@excalidraw/excalidraw/index.css"
 
 type SketchTemplate = "iphone" | "web" | "modal"
-type ToolType = "selection" | "rectangle" | "ellipse" | "text" | "arrow" | "freedraw"
+type ToolType = "selection" | "rectangle" | "ellipse" | "text" | "arrow" | "freedraw" | "mask"
+type DrawingToolType = Exclude<ToolType, "mask">
 
 type TemplateButton = {
   id: SketchTemplate
   label: string
   description: string
-  icon: typeof Smartphone
+  icon: LucideIcon
 }
 
 type ToolButton = {
   id: ToolType
   label: string
-  icon: typeof MousePointer2
+  icon: LucideIcon
 }
+
+type MaskColor = {
+  value: string
+  label: string
+}
+
+type ImportedFileId = string & { _brand: "FileId" }
+type ExcalidrawSkeletonElement = NonNullable<Parameters<typeof convertToExcalidrawElements>[0]>[number]
+
+const MAX_IMPORTED_IMAGE_WIDTH = 760
+const MAX_IMPORTED_IMAGE_HEIGHT = 520
+const MASK_STROKE_WIDTH = 18
 
 const toolButtons: ToolButton[] = [
   { id: "selection", label: "选择", icon: MousePointer2 },
@@ -48,12 +64,20 @@ const toolButtons: ToolButton[] = [
   { id: "text", label: "文字", icon: Type },
   { id: "arrow", label: "箭头", icon: ArrowRight },
   { id: "freedraw", label: "手绘", icon: PenLine },
+  { id: "mask", label: "遮盖", icon: Paintbrush },
 ]
 
 const templateButtons: TemplateButton[] = [
   { id: "iphone", label: "iPhone", description: "移动端比例参考", icon: Smartphone },
   { id: "web", label: "Web", description: "网页布局参考", icon: PanelRight },
   { id: "modal", label: "弹窗", description: "浮层状态参考", icon: Frame },
+]
+
+const maskColors: MaskColor[] = [
+  { value: "#ffffff", label: "白色" },
+  { value: "#f8fafc", label: "浅灰" },
+  { value: "#fef3c7", label: "浅黄" },
+  { value: "#dbeafe", label: "浅蓝" },
 ]
 
 const makeText = (x: number, y: number, text: string, fontSize = 18) => ({
@@ -194,10 +218,47 @@ const buildAgentHandoffText = (elementCount: number) => `这是一个低保真�
 画布元素数量：${elementCount}
 请优先识别页面框、卡片、输入框、按钮、箭头和中文批注，再转成实现方案。`
 
+const readFileAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+
+const readImageDimensions = (src: string) =>
+  new Promise<{ width: number; height: number }>((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => {
+      resolve({
+        width: image.naturalWidth || MAX_IMPORTED_IMAGE_WIDTH,
+        height: image.naturalHeight || MAX_IMPORTED_IMAGE_HEIGHT,
+      })
+    }
+    image.onerror = () => reject(new Error("Cannot read image dimensions"))
+    image.src = src
+  })
+
+const fitImportedImage = (width: number, height: number) => {
+  const sourceWidth = Math.max(width, 1)
+  const sourceHeight = Math.max(height, 1)
+  const scale = Math.min(MAX_IMPORTED_IMAGE_WIDTH / sourceWidth, MAX_IMPORTED_IMAGE_HEIGHT / sourceHeight, 1)
+
+  return {
+    width: Math.round(sourceWidth * scale),
+    height: Math.round(sourceHeight * scale),
+  }
+}
+
+const makeFileId = (): ImportedFileId =>
+  `imported-image-${Date.now()}-${Math.random().toString(36).slice(2)}` as ImportedFileId
+
 function App() {
   const excalidrawApiRef = useRef<any | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const insertCountRef = useRef(0)
   const [activeTool, setActiveToolState] = useState<ToolType>("selection")
+  const [maskColor, setMaskColor] = useState(maskColors[0].value)
   const [copyStatus, setCopyStatus] = useState("PNG + 批注")
   const [lastInsertedTemplate, setLastInsertedTemplate] = useState<SketchTemplate>("iphone")
 
@@ -219,10 +280,55 @@ function App() {
     [],
   )
 
+  const applyMaskTool = useCallback((color: string) => {
+    const api = excalidrawApiRef.current
+    if (!api) return
+
+    api.updateScene({
+      appState: {
+        currentItemStrokeColor: color,
+        currentItemBackgroundColor: color,
+        currentItemStrokeWidth: MASK_STROKE_WIDTH,
+        currentItemRoughness: 0,
+        currentItemOpacity: 100,
+      },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    })
+    api.setActiveTool({ type: "freedraw" })
+  }, [])
+
+  const applyDefaultTool = useCallback((tool: DrawingToolType) => {
+    const api = excalidrawApiRef.current
+    if (!api) return
+
+    api.updateScene({
+      appState: {
+        currentItemStrokeColor: "#111827",
+        currentItemBackgroundColor: "transparent",
+        currentItemStrokeWidth: tool === "arrow" || tool === "freedraw" ? 2 : 1,
+        currentItemRoughness: 1,
+        currentItemOpacity: 100,
+      },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    })
+    api.setActiveTool({ type: tool })
+  }, [])
+
   const handleToolSelect = useCallback((tool: ToolType) => {
     setActiveToolState(tool)
-    excalidrawApiRef.current?.setActiveTool({ type: tool })
-  }, [])
+    if (tool === "mask") {
+      applyMaskTool(maskColor)
+      return
+    }
+    applyDefaultTool(tool)
+  }, [applyDefaultTool, applyMaskTool, maskColor])
+
+  const handleMaskColorSelect = useCallback((color: string) => {
+    setMaskColor(color)
+    if (activeTool === "mask") {
+      applyMaskTool(color)
+    }
+  }, [activeTool, applyMaskTool])
 
   const handleInsertTemplate = useCallback((template: SketchTemplate) => {
     const api = excalidrawApiRef.current
@@ -263,6 +369,75 @@ function App() {
     })
     handleToolSelect("selection")
     setLastInsertedTemplate("iphone")
+  }, [handleToolSelect])
+
+  const handleImportImageClick = useCallback(() => {
+    fileInputRef.current?.click()
+  }, [])
+
+  const handleImageFileChange = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget
+    const file = input.files?.[0]
+    const api = excalidrawApiRef.current
+
+    if (!file || !api) return
+
+    if (!file.type.startsWith("image/")) {
+      setCopyStatus("请选择图片")
+      window.setTimeout(() => setCopyStatus("PNG + 批注"), 1600)
+      input.value = ""
+      return
+    }
+
+    setCopyStatus("正在导入")
+
+    try {
+      const dataURL = await readFileAsDataUrl(file)
+      const dimensions = await readImageDimensions(dataURL)
+      const fitted = fitImportedImage(dimensions.width, dimensions.height)
+      const fileId = makeFileId()
+      const imageSkeleton = {
+        type: "image",
+        x: -360,
+        y: -260,
+        width: fitted.width,
+        height: fitted.height,
+        fileId,
+        status: "saved",
+        scale: [1, 1],
+        crop: null,
+        strokeColor: "transparent",
+        backgroundColor: "transparent",
+        roughness: 0,
+        opacity: 100,
+      } satisfies ExcalidrawSkeletonElement
+      const insertedElements = convertToExcalidrawElements(
+        [imageSkeleton],
+        { regenerateIds: true },
+      )
+
+      api.addFiles([
+        {
+          id: fileId,
+          mimeType: file.type,
+          dataURL,
+          created: Date.now(),
+          lastRetrieved: Date.now(),
+        },
+      ])
+      api.updateScene({
+        elements: [...api.getSceneElements(), ...insertedElements],
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      })
+      api.scrollToContent(insertedElements, { fitToContent: true, animate: true })
+      handleToolSelect("selection")
+      setCopyStatus("已导入图片")
+    } catch {
+      setCopyStatus("导入失败")
+    } finally {
+      input.value = ""
+      window.setTimeout(() => setCopyStatus("PNG + 批注"), 1800)
+    }
   }, [handleToolSelect])
 
   const handleCopyForAgent = useCallback(async () => {
@@ -351,9 +526,22 @@ function App() {
           </div>
           <div className="title-actions">
             <span className="copy-status">{copyStatus}</span>
+            <input
+              ref={fileInputRef}
+              className="file-input"
+              type="file"
+              accept="image/*"
+              tabIndex={-1}
+              aria-hidden="true"
+              onChange={handleImageFileChange}
+            />
             <button className="secondary-action" type="button" onClick={handleNewCanvas}>
               <FilePlus2 size={16} />
               新建
+            </button>
+            <button className="secondary-action" type="button" onClick={handleImportImageClick}>
+              <ImagePlus size={16} />
+              导入图片
             </button>
             <button className="secondary-action" type="button" onClick={handleDownloadPng}>
               <Download size={16} />
@@ -383,6 +571,21 @@ function App() {
                 </button>
               )
             })}
+            {activeTool === "mask" ? (
+              <div className="mask-swatches" aria-label="遮盖颜色">
+                {maskColors.map((color) => (
+                  <button
+                    key={color.value}
+                    className={maskColor === color.value ? "mask-swatch active" : "mask-swatch"}
+                    type="button"
+                    style={{ background: color.value }}
+                    aria-label={`遮盖颜色 ${color.label}`}
+                    title={color.label}
+                    onClick={() => handleMaskColorSelect(color.value)}
+                  />
+                ))}
+              </div>
+            ) : null}
           </aside>
 
           <section className="canvas-shell" aria-label="白板画布">
