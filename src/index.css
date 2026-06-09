@@ -305,6 +305,13 @@ button {
   padding: 26px 24px;
   background: rgba(255, 255, 255, 0.94);
   border-left: 1px solid #e5e7eb;
+  overflow-y: auto;
+}
+
+.panel-section + .panel-section {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid #e5e7eb;
 }
 
 .panel-heading {
@@ -358,6 +365,40 @@ button {
   color: #64748b;
   font-size: 12px;
   line-height: 1.25;
+}
+
+.component-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.component-card {
+  min-width: 0;
+  min-height: 66px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px 8px;
+  display: grid;
+  place-items: center;
+  gap: 7px;
+  color: #111827;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.component-card:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.component-card span {
+  max-width: 100%;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
 }
 
 @media (max-width: 980px) {

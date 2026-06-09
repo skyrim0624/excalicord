@@ -3,19 +3,26 @@ import {
   ArrowRight,
   Circle,
   ClipboardCopy,
+  Component,
   Download,
   FilePlus2,
   FileText,
   Frame,
   ImagePlus,
   type LucideIcon,
+  List,
+  MousePointerClick,
   MousePointer2,
+  Navigation,
   Paintbrush,
   PanelRight,
+  PanelTop,
   PenLine,
   RectangleHorizontal,
+  Search,
   Smartphone,
   StickyNote,
+  TextCursorInput,
   Type,
 } from "lucide-react"
 import {
@@ -29,6 +36,7 @@ import {
 import "@excalidraw/excalidraw/index.css"
 
 type SketchTemplate = "iphone" | "web" | "modal"
+type ComponentTemplate = "search" | "listCard" | "topNav" | "bottomNav" | "formField" | "primaryButton"
 type ToolType = "selection" | "rectangle" | "ellipse" | "text" | "arrow" | "freedraw" | "mask"
 type DrawingToolType = Exclude<ToolType, "mask">
 
@@ -41,6 +49,12 @@ type TemplateButton = {
 
 type ToolButton = {
   id: ToolType
+  label: string
+  icon: LucideIcon
+}
+
+type ComponentButton = {
+  id: ComponentTemplate
   label: string
   icon: LucideIcon
 }
@@ -71,6 +85,15 @@ const templateButtons: TemplateButton[] = [
   { id: "iphone", label: "iPhone", description: "移动端比例参考", icon: Smartphone },
   { id: "web", label: "Web", description: "网页布局参考", icon: PanelRight },
   { id: "modal", label: "弹窗", description: "浮层状态参考", icon: Frame },
+]
+
+const componentButtons: ComponentButton[] = [
+  { id: "search", label: "搜索框", icon: Search },
+  { id: "listCard", label: "列表卡片", icon: List },
+  { id: "topNav", label: "顶部导航", icon: PanelTop },
+  { id: "bottomNav", label: "底部导航", icon: Navigation },
+  { id: "formField", label: "表单项", icon: TextCursorInput },
+  { id: "primaryButton", label: "主按钮", icon: MousePointerClick },
 ]
 
 const maskColors: MaskColor[] = [
@@ -105,6 +128,31 @@ const makeBox = (
   } = {},
 ) => ({
   type: "rectangle",
+  x,
+  y,
+  width,
+  height,
+  strokeColor: options.strokeColor ?? "#111827",
+  backgroundColor: options.backgroundColor ?? "transparent",
+  fillStyle: options.fillStyle ?? "hachure",
+  strokeWidth: options.strokeWidth ?? 1,
+  roughness: options.roughness ?? 1,
+})
+
+const makeEllipse = (
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  options: {
+    strokeColor?: string
+    backgroundColor?: string
+    fillStyle?: "solid" | "hachure" | "cross-hatch"
+    strokeWidth?: number
+    roughness?: number
+  } = {},
+) => ({
+  type: "ellipse",
   x,
   y,
   width,
@@ -182,6 +230,51 @@ const buildModalTemplate = (x: number, y: number) => [
   makeBox(x + 146, y + 132, 96, 34, { fillStyle: "solid", backgroundColor: "#ffffff" }),
 ]
 
+const buildSearchComponent = (x: number, y: number) => [
+  makeBox(x, y, 280, 44, { fillStyle: "solid", backgroundColor: "#ffffff" }),
+  makeEllipse(x + 18, y + 14, 14, 14, { roughness: 0 }),
+  makeText(x + 46, y + 12, "搜索内容", 14),
+]
+
+const buildListCardComponent = (x: number, y: number) => [
+  makeBox(x, y, 300, 86, { backgroundColor: "#f8fafc" }),
+  makeBox(x + 16, y + 18, 52, 50, { fillStyle: "solid", backgroundColor: "#ffffff" }),
+  makeText(x + 88, y + 20, "列表卡片", 16),
+  makeText(x + 88, y + 50, "副标题或状态说明", 13),
+  makeBox(x + 224, y + 28, 54, 28, { fillStyle: "solid", backgroundColor: "#ffffff" }),
+]
+
+const buildTopNavComponent = (x: number, y: number) => [
+  makeBox(x, y, 340, 56, { fillStyle: "solid", backgroundColor: "#ffffff", strokeWidth: 2 }),
+  makeText(x + 18, y + 18, "页面标题", 15),
+  makeBox(x + 158, y + 17, 42, 20, { backgroundColor: "#f8fafc" }),
+  makeBox(x + 218, y + 17, 42, 20, { backgroundColor: "#f8fafc" }),
+  makeBox(x + 278, y + 17, 42, 20, { backgroundColor: "#f8fafc" }),
+]
+
+const buildBottomNavComponent = (x: number, y: number) => [
+  makeBox(x, y, 280, 70, { fillStyle: "solid", backgroundColor: "#ffffff", strokeWidth: 2 }),
+  makeEllipse(x + 28, y + 14, 22, 22, { backgroundColor: "#f8fafc" }),
+  makeText(x + 22, y + 44, "首页", 11),
+  makeEllipse(x + 94, y + 14, 22, 22, { backgroundColor: "#f8fafc" }),
+  makeText(x + 88, y + 44, "搜索", 11),
+  makeEllipse(x + 160, y + 14, 22, 22, { backgroundColor: "#f8fafc" }),
+  makeText(x + 154, y + 44, "收藏", 11),
+  makeEllipse(x + 226, y + 14, 22, 22, { backgroundColor: "#f8fafc" }),
+  makeText(x + 220, y + 44, "我的", 11),
+]
+
+const buildFormFieldComponent = (x: number, y: number) => [
+  makeText(x, y, "字段名称", 14),
+  makeBox(x, y + 28, 260, 42, { fillStyle: "solid", backgroundColor: "#ffffff" }),
+  makeText(x + 18, y + 40, "输入内容", 13),
+]
+
+const buildPrimaryButtonComponent = (x: number, y: number) => [
+  makeBox(x, y, 150, 44, { fillStyle: "solid", backgroundColor: "#dbeafe", strokeWidth: 2 }),
+  makeText(x + 54, y + 13, "按钮", 15),
+]
+
 const buildInitialElements = () =>
   convertToExcalidrawElements(
     [
@@ -208,6 +301,25 @@ const buildTemplateElements = (template: SketchTemplate, insertIndex: number) =>
       : template === "web"
         ? buildWebTemplate(x, y)
         : buildModalTemplate(x, y)
+
+  return convertToExcalidrawElements(skeletons as any[], { regenerateIds: true })
+}
+
+const buildComponentElements = (component: ComponentTemplate, insertIndex: number) => {
+  const x = 560
+  const y = 460 + insertIndex * 104
+  const skeletons =
+    component === "search"
+      ? buildSearchComponent(x, y)
+      : component === "listCard"
+        ? buildListCardComponent(x, y)
+        : component === "topNav"
+          ? buildTopNavComponent(x, y)
+          : component === "bottomNav"
+            ? buildBottomNavComponent(x, y)
+            : component === "formField"
+              ? buildFormFieldComponent(x, y)
+              : buildPrimaryButtonComponent(x, y)
 
   return convertToExcalidrawElements(skeletons as any[], { regenerateIds: true })
 }
@@ -344,6 +456,20 @@ function App() {
     })
     api.scrollToContent(insertedElements, { fitToContent: true, animate: true })
     setLastInsertedTemplate(template)
+  }, [])
+
+  const handleInsertComponent = useCallback((component: ComponentTemplate) => {
+    const api = excalidrawApiRef.current
+    if (!api) return
+
+    const insertedElements = buildComponentElements(component, insertCountRef.current)
+    insertCountRef.current += 1
+
+    api.updateScene({
+      elements: [...api.getSceneElements(), ...insertedElements],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    })
+    api.scrollToContent(insertedElements, { fitToContent: true, animate: true })
   }, [])
 
   const handleNewCanvas = useCallback(() => {
@@ -611,29 +737,53 @@ function App() {
             />
           </section>
 
-          <aside className="template-panel" aria-label="模板">
-            <div className="panel-heading">
-              <span>模板</span>
-              <StickyNote size={18} />
+          <aside className="template-panel" aria-label="模板和组件">
+            <div className="panel-section">
+              <div className="panel-heading">
+                <span>模板</span>
+                <StickyNote size={18} />
+              </div>
+              <div className="template-list">
+                {templateButtons.map((template) => {
+                  const Icon = template.icon
+                  return (
+                    <button
+                      key={template.id}
+                      className={lastInsertedTemplate === template.id ? "template-card active" : "template-card"}
+                      type="button"
+                      onClick={() => handleInsertTemplate(template.id)}
+                    >
+                      <Icon size={28} />
+                      <span>
+                        <strong>{template.label}</strong>
+                        <small>{template.description}</small>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-            <div className="template-list">
-              {templateButtons.map((template) => {
-                const Icon = template.icon
-                return (
-                  <button
-                    key={template.id}
-                    className={lastInsertedTemplate === template.id ? "template-card active" : "template-card"}
-                    type="button"
-                    onClick={() => handleInsertTemplate(template.id)}
-                  >
-                    <Icon size={28} />
-                    <span>
-                      <strong>{template.label}</strong>
-                      <small>{template.description}</small>
-                    </span>
-                  </button>
-                )
-              })}
+            <div className="panel-section">
+              <div className="panel-heading">
+                <span>组件</span>
+                <Component size={18} />
+              </div>
+              <div className="component-grid">
+                {componentButtons.map((component) => {
+                  const Icon = component.icon
+                  return (
+                    <button
+                      key={component.id}
+                      className="component-card"
+                      type="button"
+                      onClick={() => handleInsertComponent(component.id)}
+                    >
+                      <Icon size={20} />
+                      <span>{component.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </aside>
         </div>
