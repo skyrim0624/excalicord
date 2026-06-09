@@ -18,14 +18,12 @@ import {
   PanelRight,
   PanelTop,
   PenLine,
-  Play,
   RectangleHorizontal,
   Search,
   Smartphone,
   StickyNote,
   TextCursorInput,
   Type,
-  X,
 } from "lucide-react"
 import {
   CaptureUpdateAction,
@@ -74,25 +72,6 @@ type MaskColor = {
   label: string
 }
 
-type PrototypePreviewState = {
-  id: string
-  label: string
-  title: string
-  items: string[]
-}
-
-type PrototypePreviewData = {
-  imageUrl: string
-  states: PrototypePreviewState[]
-}
-
-type PreviewBounds = {
-  x: number
-  y: number
-  width: number
-  height: number
-}
-
 type ImportedFileId = string & { _brand: "FileId" }
 type ExcalidrawSkeletonElement = NonNullable<Parameters<typeof convertToExcalidrawElements>[0]>[number]
 
@@ -100,6 +79,7 @@ const MAX_IMPORTED_IMAGE_WIDTH = 760
 const MAX_IMPORTED_IMAGE_HEIGHT = 520
 const MASK_STROKE_WIDTH = 18
 const INITIAL_ZOOM = 0.7 as NormalizedZoomValue
+const READY_STATUS = "图片 + 说明"
 
 const toolButtons: ToolButton[] = [
   { id: "selection", label: "选择", icon: MousePointer2 },
@@ -311,7 +291,7 @@ const buildInitialElements = () =>
       ...buildIphoneTemplate(-420, -260),
       ...buildWebTemplate(-80, -210),
       makeText(-480, 300, "用左侧工具继续画：矩形 / 圆形 / 文字 / 箭头", 18),
-      makeText(-480, 336, "画完点右上角「复制给 AI」", 18),
+      makeText(-480, 336, "画完点右上角「复制交接包」发给 AI", 18),
     ] as ExcalidrawSkeletonElement[],
     { regenerateIds: true },
   )
@@ -354,77 +334,73 @@ const buildComponentElements = (component: ComponentTemplate, insertIndex: numbe
   return convertToExcalidrawElements(skeletons as ExcalidrawSkeletonElement[], { regenerateIds: true })
 }
 
-const buildAgentHandoffText = (elementCount: number) => `这是一个低保真产品原型草图。
-
-目标：让 AI Agent 根据图中的 iPhone / Web / 弹窗结构理解产品界面。
-画布元素数量：${elementCount}
-请优先识别页面框、卡片、输入框、按钮、箭头和中文批注，再转成实现方案。`
-
-const genericPreviewLabels = new Set([
+const ignoredHandoffLabels = new Set([
   "AI 原型草图",
   "iPhone",
   "Web",
   "用左侧工具继续画：矩形 / 圆形 / 文字 / 箭头",
   "画完点右上角「复制给 AI」",
+  "画完点右上角「复制交接包」发给 AI",
 ])
 
-const normalizePreviewLabel = (text: string) => text.trim().replace(/\s+/g, " ")
+const interactionKeywords = ["点击", "进入", "跳转", "打开", "关闭", "切换", "提交", "保存", "详情", "弹窗"]
 
-const getElementBounds = (element: Pick<ExcalidrawElement, "x" | "y" | "width" | "height">): PreviewBounds => ({
-  x: Number(element.x ?? 0),
-  y: Number(element.y ?? 0),
-  width: Math.abs(Number(element.width ?? 0)),
-  height: Math.abs(Number(element.height ?? 0)),
-})
+const normalizeHandoffText = (text: string) => text.trim().replace(/\s+/g, " ")
 
-const isPointInsideBounds = (point: { x: number; y: number }, bounds: PreviewBounds) =>
-  point.x >= bounds.x && point.x <= bounds.x + bounds.width && point.y >= bounds.y && point.y <= bounds.y + bounds.height
+const listLines = (items: string[], emptyText: string) =>
+  items.length > 0 ? items.map((item) => `- ${item}`).join("\n") : `- ${emptyText}`
 
-const getTextElementCenter = (element: Pick<ExcalidrawTextElement, "x" | "y" | "width" | "height">) => {
-  const bounds = getElementBounds(element)
-  return {
-    x: bounds.x + bounds.width / 2,
-    y: bounds.y + bounds.height / 2,
-  }
-}
+const getUniqueSceneTexts = (elements: readonly ExcalidrawElement[]) =>
+  Array.from(
+    new Set(
+      elements
+        .filter((element): element is ExcalidrawTextElement => element.type === "text")
+        .map((element) => normalizeHandoffText(element.text))
+        .filter((text) => text.length > 0 && !ignoredHandoffLabels.has(text)),
+    ),
+  )
 
-const buildPreviewStates = (elements: readonly ExcalidrawElement[]): PrototypePreviewState[] => {
-  const textElements = elements
-    .filter((element): element is ExcalidrawTextElement => element.type === "text")
-    .map((element) => ({
-      text: normalizePreviewLabel(element.text),
-      center: getTextElementCenter(element),
-    }))
-    .filter((item) => item.text.length > 0 && item.text.length <= 18 && !genericPreviewLabels.has(item.text))
+const buildAgentHandoffText = (elements: readonly ExcalidrawElement[]) => {
+  const texts = getUniqueSceneTexts(elements)
+  const pageReferences = [
+    elements.some((element) => element.type === "text" && normalizeHandoffText(element.text) === "iPhone") ? "iPhone / 移动端页面" : "",
+    elements.some((element) => element.type === "text" && normalizeHandoffText(element.text) === "Web") ? "Web / 桌面页面" : "",
+    texts.some((text) => text.includes("弹窗")) ? "弹窗 / 浮层状态" : "",
+  ].filter(Boolean)
+  const interactionNotes = texts.filter((text) => interactionKeywords.some((keyword) => text.includes(keyword)))
+  const rectangleCount = elements.filter((element) => element.type === "rectangle").length
+  const ellipseCount = elements.filter((element) => element.type === "ellipse").length
+  const arrowCount = elements.filter((element) => element.type === "arrow").length
+  const imageCount = elements.filter((element) => element.type === "image").length
+  const freeDrawCount = elements.filter((element) => element.type === "freedraw").length
+  const contextNotes = [
+    arrowCount > 0 ? `有 ${arrowCount} 条箭头，优先理解为页面流向或点击指向。` : "",
+    imageCount > 0 ? `包含 ${imageCount} 张导入图片，图片中的涂抹/遮盖区域通常表示需要替换或重画。` : "",
+    freeDrawCount > 0 ? `包含 ${freeDrawCount} 条手绘笔迹，优先理解为批注、圈选或遮盖。` : "",
+  ].filter(Boolean)
 
-  const clickableShapes = elements
-    .filter((element) => element.type === "rectangle" || element.type === "ellipse")
-    .map((element) => ({ element, bounds: getElementBounds(element) }))
-    .filter(({ bounds }) => bounds.width >= 24 && bounds.width <= 340 && bounds.height >= 18 && bounds.height <= 110)
-    .sort((a, b) => b.bounds.x - a.bounds.x || a.bounds.y - b.bounds.y)
+  return `# AI 原型草图交接包
 
-  const labels = clickableShapes
-    .map(({ bounds }) => textElements.find((textElement) => isPointInsideBounds(textElement.center, bounds))?.text)
-    .filter((label): label is string => Boolean(label))
+请根据随附 PNG 草图实现产品界面。先识别草图结构，不要自由发挥草图里没有表达的功能。
 
-  for (const textElement of textElements) {
-    labels.push(textElement.text)
-  }
+## 画布概况
+- 元素总数：${elements.length}
+- 页面参考：${pageReferences.length > 0 ? pageReferences.join("、") : "未明确标注"}
+- 图形概况：矩形 ${rectangleCount} 个，圆形 ${ellipseCount} 个，箭头 ${arrowCount} 条，图片 ${imageCount} 张，手绘 ${freeDrawCount} 条
 
-  const uniqueLabels = Array.from(new Set(labels)).slice(0, 4)
-  const fallbackLabels = ["状态一", "状态二", "状态三"]
-  const previewLabels = uniqueLabels.length >= 2 ? uniqueLabels : fallbackLabels
+## 草图文字
+${listLines(texts.slice(0, 16), "没有可提取文字，请直接依据图片判断布局。")}
 
-  return previewLabels.map((label, index) => ({
-    id: `state-${index}`,
-    label,
-    title: label,
-    items: [
-      `${label} 的主内容区域`,
-      "这里会根据点击状态切换",
-      "真实实现时替换成对应页面内容",
-    ],
-  }))
+## 交互线索
+${listLines(interactionNotes, "没有明确交互文字；请只实现草图能看出的基础界面。")}
+
+## 额外说明
+${listLines(contextNotes, "没有额外标记。")}
+
+## 实现要求
+- 保留草图里的页面比例、组件位置和批注意图。
+- 先做低保真可运行版本，不要主动添加未标注的新功能。
+- 如果草图和文字冲突，以文字批注优先。`
 }
 
 const readFileAsDataUrl = (file: File) =>
@@ -459,6 +435,33 @@ const fitImportedImage = (width: number, height: number) => {
   }
 }
 
+const copyTextWithLegacyFallback = (text: string) => {
+  const textArea = document.createElement("textarea")
+  textArea.value = text
+  textArea.style.position = "fixed"
+  textArea.style.left = "-9999px"
+  textArea.style.top = "0"
+  document.body.appendChild(textArea)
+  textArea.focus()
+  textArea.select()
+
+  try {
+    return document.execCommand("copy")
+  } finally {
+    document.body.removeChild(textArea)
+  }
+}
+
+const downloadTextFile = (text: string) => {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" })
+  const objectUrl = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = objectUrl
+  link.download = `prototype-handoff-${Date.now()}.txt`
+  link.click()
+  URL.revokeObjectURL(objectUrl)
+}
+
 const makeFileId = (): ImportedFileId =>
   `imported-image-${Date.now()}-${Math.random().toString(36).slice(2)}` as ImportedFileId
 
@@ -466,17 +469,10 @@ function App() {
   const excalidrawApiRef = useRef<ExcalidrawImperativeAPI | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const insertCountRef = useRef(0)
-  const previewImageUrlRef = useRef<string | null>(null)
   const [activeTool, setActiveToolState] = useState<ToolType>("selection")
   const [maskColor, setMaskColor] = useState(maskColors[0].value)
-  const [copyStatus, setCopyStatus] = useState("PNG + 批注")
+  const [copyStatus, setCopyStatus] = useState(READY_STATUS)
   const [lastInsertedTemplate, setLastInsertedTemplate] = useState<SketchTemplate>("iphone")
-  const [previewData, setPreviewData] = useState<PrototypePreviewData | null>(null)
-  const [activePreviewStateId, setActivePreviewStateId] = useState("")
-  const [isPreviewModalOpen, setPreviewModalOpen] = useState(false)
-
-  const activePreviewState =
-    previewData?.states.find((state) => state.id === activePreviewStateId) ?? previewData?.states[0] ?? null
 
   const initialData = useMemo<ExcalidrawInitialDataState>(
     () => ({
@@ -604,60 +600,6 @@ function App() {
     fileInputRef.current?.click()
   }, [])
 
-  const closePreview = useCallback(() => {
-    if (previewImageUrlRef.current) {
-      URL.revokeObjectURL(previewImageUrlRef.current)
-      previewImageUrlRef.current = null
-    }
-    setPreviewData(null)
-    setActivePreviewStateId("")
-    setPreviewModalOpen(false)
-  }, [])
-
-  const handleGeneratePreview = useCallback(async () => {
-    const api = excalidrawApiRef.current
-    if (!api) return
-
-    const elements = api.getSceneElements()
-    if (elements.length === 0) {
-      setCopyStatus("先画草图")
-      window.setTimeout(() => setCopyStatus("PNG + 批注"), 1600)
-      return
-    }
-
-    setCopyStatus("正在生成")
-
-    try {
-      const blob = await exportToBlob({
-        elements,
-        files: api.getFiles(),
-        appState: {
-          ...api.getAppState(),
-          exportBackground: true,
-          viewBackgroundColor: "#ffffff",
-        },
-        mimeType: "image/png",
-        exportPadding: 24,
-      })
-      const imageUrl = URL.createObjectURL(blob)
-
-      if (previewImageUrlRef.current) {
-        URL.revokeObjectURL(previewImageUrlRef.current)
-      }
-
-      const states = buildPreviewStates(elements)
-      previewImageUrlRef.current = imageUrl
-      setPreviewData({ imageUrl, states })
-      setActivePreviewStateId(states[0]?.id ?? "")
-      setPreviewModalOpen(false)
-      setCopyStatus("已生成预览")
-    } catch {
-      setCopyStatus("生成失败")
-    } finally {
-      window.setTimeout(() => setCopyStatus("PNG + 批注"), 1800)
-    }
-  }, [])
-
   const handleImageFileChange = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget
     const file = input.files?.[0]
@@ -667,7 +609,7 @@ function App() {
 
     if (!file.type.startsWith("image/")) {
       setCopyStatus("请选择图片")
-      window.setTimeout(() => setCopyStatus("PNG + 批注"), 1600)
+      window.setTimeout(() => setCopyStatus(READY_STATUS), 1600)
       input.value = ""
       return
     }
@@ -720,7 +662,7 @@ function App() {
       setCopyStatus("导入失败")
     } finally {
       input.value = ""
-      window.setTimeout(() => setCopyStatus("PNG + 批注"), 1800)
+      window.setTimeout(() => setCopyStatus(READY_STATUS), 1800)
     }
   }, [handleToolSelect])
 
@@ -729,7 +671,7 @@ function App() {
     if (!api) return
 
     const elements = api.getSceneElements()
-    const handoffText = buildAgentHandoffText(elements.length)
+    const handoffText = buildAgentHandoffText(elements)
 
     setCopyStatus("正在复制")
 
@@ -753,21 +695,25 @@ function App() {
             "text/plain": new Blob([handoffText], { type: "text/plain" }),
           }),
         ])
-        setCopyStatus("已复制 PNG + 批注")
+        setCopyStatus("已复制交接包")
       } else {
         await navigator.clipboard.writeText(handoffText)
-        setCopyStatus("已复制批注")
+        setCopyStatus("已复制说明")
       }
     } catch (error) {
       try {
         await navigator.clipboard.writeText(handoffText)
-        setCopyStatus("已复制批注")
+        setCopyStatus("已复制说明")
       } catch {
-        // NOTE: 部分自动化浏览器或桌面壳会拒绝剪贴板权限，用户仍可用导出按钮拿到 PNG。
-        setCopyStatus(error instanceof Error && error.name === "NotAllowedError" ? "浏览器拦截复制" : "复制失败")
+        if (copyTextWithLegacyFallback(handoffText)) {
+          setCopyStatus("已复制说明")
+        } else {
+          downloadTextFile(handoffText)
+          setCopyStatus(error instanceof Error && error.name === "NotAllowedError" ? "已下载说明" : "复制失败")
+        }
       }
     } finally {
-      window.setTimeout(() => setCopyStatus("PNG + 批注"), 2200)
+      window.setTimeout(() => setCopyStatus(READY_STATUS), 2200)
     }
   }, [])
 
@@ -831,13 +777,9 @@ function App() {
               <Download size={16} />
               导出
             </button>
-            <button className="secondary-action" type="button" onClick={handleGeneratePreview}>
-              <Play size={16} />
-              生成预览
-            </button>
             <button className="primary-action" type="button" onClick={handleCopyForAgent}>
               <ClipboardCopy size={17} />
-              复制给 AI
+              复制交接包
             </button>
           </div>
         </div>
@@ -950,60 +892,6 @@ function App() {
           </aside>
         </div>
       </section>
-      {previewData && activePreviewState ? (
-        <section className="preview-overlay" aria-label="交互预览">
-          <div className="preview-window">
-            <header className="preview-titlebar">
-              <div className="preview-title">
-                <Play size={17} />
-                <span>交互预览</span>
-              </div>
-              <button className="preview-close" type="button" aria-label="关闭预览" onClick={closePreview}>
-                <X size={18} />
-              </button>
-            </header>
-            <div className="preview-content">
-              <div className="preview-stage">
-                <img className="preview-sketch" src={previewData.imageUrl} alt="当前草图预览" />
-                <div className="preview-state-card">
-                  <strong>{activePreviewState.title}</strong>
-                  {activePreviewState.items.map((item) => (
-                    <span key={item}>{item}</span>
-                  ))}
-                </div>
-              </div>
-              <aside className="preview-controls" aria-label="预览交互">
-                <div className="preview-control-list">
-                  {previewData.states.map((state) => (
-                    <button
-                      key={state.id}
-                      className={state.id === activePreviewState.id ? "preview-control active" : "preview-control"}
-                      type="button"
-                      onClick={() => setActivePreviewStateId(state.id)}
-                    >
-                      {state.label}
-                    </button>
-                  ))}
-                </div>
-                <button className="preview-modal-trigger" type="button" onClick={() => setPreviewModalOpen(true)}>
-                  打开弹窗
-                </button>
-              </aside>
-              {isPreviewModalOpen ? (
-                <div className="generated-modal-backdrop" role="dialog" aria-label="预览弹窗">
-                  <div className="generated-modal">
-                    <strong>{activePreviewState.label}</strong>
-                    <span>这是由草图生成的弹窗状态。</span>
-                    <button type="button" onClick={() => setPreviewModalOpen(false)}>
-                      关闭
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </section>
-      ) : null}
     </main>
   )
 }
